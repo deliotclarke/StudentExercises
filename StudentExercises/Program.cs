@@ -26,7 +26,7 @@ namespace StudentExercises
                 Name = "Reverse The String",
                 Language = "Javascript"
             };
-            //repository.AddNewExercise(newExercise);
+            // repository.AddNewExercise(newExercise);
 
             var javascriptExercises2 = repository.GetAllExercisesByLanguage("Javascript");
             PrintExercises("All Javascript Exercises After Reverse String:", javascriptExercises2);
@@ -35,6 +35,27 @@ namespace StudentExercises
 
             List<Instructor> instructors = repository.GetInstructors();
             PrintInstructors("All Instructors:", instructors);
+
+            Pause();
+
+            Instructor newInstructor = new Instructor()
+            {
+                FirstName = "Steve",
+                LastName = "Brownlee",
+                SlackHandle = "coach",
+                Specialty = "Being good at everything",
+                CohortId = 2
+            };
+            // repository.AddNewInstructor(newInstructor);
+            List<Instructor> instructors2 = repository.GetInstructors();
+            PrintInstructors("Instructors after Steve:", instructors2);
+
+            // repository.AssignExercise(5, 4);
+
+            Pause();
+
+            var studentsAndExercises = repository.GetAllStudentsAndExercises();
+            PrintStudentsAndExercises("All students and exercises:", studentsAndExercises);
 
         }
 
@@ -51,7 +72,17 @@ namespace StudentExercises
             Console.WriteLine(str);
             instructors.ForEach(instr =>
             {
-                Console.WriteLine($"{instr.Id}. {instr.FirstName} {instr.LastName} - in Cohort {instr.Cohort}");
+                Console.WriteLine($"{instr.Id}. {instr.FirstName} {instr.LastName} - in Cohort {instr.Cohort.CohortName}");
+            });
+        }
+        public static void PrintStudentsAndExercises(string str, List<Student> students)
+        {
+            Console.WriteLine(str);
+            students.ForEach(stu =>
+            {
+                Console.WriteLine($"{stu.Id}. {stu.FirstName} {stu.LastName} - in Cohort {stu.Cohort.CohortName}");
+                Console.WriteLine($"{stu.FirstName}'s Current Exercises:");
+                stu.CurrentExercises.ForEach(exer => Console.WriteLine($"{exer.Name}"));
             });
         }
         public static void Pause()

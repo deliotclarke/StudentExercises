@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Linq;
 using StudentExercises.Models;
 
 
@@ -126,35 +127,32 @@ namespace StudentExercises.DAL
                 conn.Open();
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = @"SELECT Id, FirstName, LastName, Cohort, Specialty FROM Instructor";
+                    cmd.CommandText = @"SELECT 
+                                        i.Id, i.FirstName, i.LastName, i.CohortId, i.Specialty, c.CohortName FROM Instructor i
+                                        LEFT JOIN Cohort c ON c.Id = i.CohortId";
 
                     SqlDataReader reader = cmd.ExecuteReader();
                     List<Instructor> instructors = new List<Instructor>();
 
                     while (reader.Read())
                     {
-                        int idColumnPosition = reader.GetOrdinal("Id");
-                        int idValue = reader.GetInt32(idColumnPosition);
-
-                        int firstNameColumnPostion = reader.GetOrdinal("FirstName");
-                        string firstNameValue = reader.GetString(firstNameColumnPostion);
-
-                        int lastNameColumnPosition = reader.GetOrdinal("LastName");
-                        string lastNameValue = reader.GetString(lastNameColumnPosition);
-
-                        int CohortColumnPosition = reader.GetOrdinal("Cohort");
-                        int cohortValue = reader.GetInt32(CohortColumnPosition);
-
-                        int specialtyColumnPosition = reader.GetOrdinal("Specialty");
-                        string specialtyValue = reader.GetString(specialtyColumnPosition);
+                        int idValue = reader.GetInt32(reader.GetOrdinal("Id"));
+                        string firstNameValue = reader.GetString(reader.GetOrdinal("FirstName"));
+                        string lastNameValue = reader.GetString(reader.GetOrdinal("LastName"));
+                        string specialtyValue = reader.GetString(reader.GetOrdinal("Specialty"));
+                        int cohortValue = reader.GetInt32(reader.GetOrdinal("CohortName"));
 
                         Instructor instructor = new Instructor()
                         {
                             Id = idValue,
                             FirstName = firstNameValue,
                             LastName = lastNameValue,
-                            Cohort = cohortValue,
-                            Specialty = specialtyValue
+                            Specialty = specialtyValue,
+                            CohortId = cohortValue,
+                            Cohort = new Cohort
+                            {
+                                CohortName = cohortValue
+                            }
                         };
 
                         instructors.Add(instructor);
@@ -165,6 +163,105 @@ namespace StudentExercises.DAL
                 }
             }
 
+        }
+
+        public void AddNewInstructor(Instructor instructor)
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO Instructor (FirstName, LastName, SlackHandle, CohortId, Specialty)
+                                            VALUES (@FirstName, @LastName, @SlackHandle, @CohortId, @Specialty)";
+                    cmd.Parameters.Add(new SqlParameter("@FirstName", instructor.FirstName));
+                    cmd.Parameters.Add(new SqlParameter("@LastName", instructor.LastName));
+                    cmd.Parameters.Add(new SqlParameter("@SlackHandle", instructor.SlackHandle));
+                    cmd.Parameters.Add(new SqlParameter("@CohortId", instructor.CohortId));
+                    cmd.Parameters.Add(new SqlParameter("@Specialty", instructor.Specialty));
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public void AssignExercise(int exerciseId, int studentId)
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO CurrentExercises (StudentId, ExerciseId)
+                                            VALUES(@StudentId, @ExerciseId)";
+                    cmd.Parameters.Add(new SqlParameter("@StudentId", studentId));
+                    cmd.Parameters.Add(new SqlParameter("@ExerciseId", exerciseId));
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public List<Student> GetAllStudentsAndExercises()
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT s.Id, s.FirstName, s.LastName, e.[Name], c.CohortName, ce.StudentId, ce.ExerciseId
+                                        FROM Student s 
+                                        LEFT JOIN CurrentExercises ce ON ce.StudentId = s.Id
+                                        LEFT JOIN Exercise e ON e.Id = ce.ExerciseId
+                                        LEFT JOIN Cohort c ON c.id = s.Cohort;";
+
+                    SqlDataReader reader = cmd.ExecuteReader();
+                    List<Student> students = new List<Student>();
+
+                    while (reader.Read())
+                    {
+                        
+                        int idValue = reader.GetInt32(reader.GetOrdinal("Id"));
+                        string firstNameValue = reader.GetString(reader.GetOrdinal("FirstName"));
+                        string lastNameValue = reader.GetString(reader.GetOrdinal("LastName"));
+                        int cohortValue = reader.GetInt32(reader.GetOrdinal("CohortName"));
+                        int currentExerciseStudent = reader.GetInt32(reader.GetOrdinal("StudentId"));
+                        int currentExerciseExercise = reader.GetInt32(reader.GetOrdinal("ExerciseId"));
+                        string exerciseName = reader.GetString(reader.GetOrdinal("Name"));
+
+                        Exercise exercise = new Exercise()
+                        {
+                            Name = exerciseName
+                        };
+
+                        if (!students.Any(stu => stu.Id == idValue))
+                        {
+                            Student student = new Student()
+                            {
+                                Id = idValue,
+                                FirstName = firstNameValue,
+                                LastName = lastNameValue,
+                                Cohort = new Cohort
+                                {
+                                    CohortName = cohortValue
+                                },
+                                CurrentExercises = new List<Exercise>()
+                            };
+
+                            student.CurrentExercises.Add(exercise);
+                            students.Add(student);
+                        }
+                        else
+                        {
+                            var studentSearch = students.Find(stu => stu.Id == idValue);
+                            studentSearch.CurrentExercises.Add(exercise);
+                        }
+                    }
+
+                    conn.Close();
+                    return students;
+                }
+            }
         }
     }
 }
